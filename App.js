@@ -15,6 +15,7 @@ export default function App() {
         <Stack.Screen name="Signup" component={ClinicLinkSignup} />
         <Stack.Screen name="ForgotPassword" component={ClinicLinkForgotPassword} />
         <Stack.Screen name="HomeScreen" component={HomeScreen} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );

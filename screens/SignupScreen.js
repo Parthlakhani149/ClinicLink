@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
 import { auth, db } from '../config/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, addDoc } from 'firebase/firestore';
@@ -52,11 +51,9 @@ export default function ClinicLinkSignup() {
   const handleSignup = async () => {
     if (validate()) {
       try {
-        // 1. Create user in Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // 2. Save additional user details in Firestore
         await addDoc(collection(db, "users"), {
           uid: user.uid,
           name,
@@ -67,13 +64,8 @@ export default function ClinicLinkSignup() {
         });
 
         console.log('Signup successful');
-
-        // ✅ Show success alert
         Alert.alert('Success', 'Account created successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Login'), // ✅ Navigate to Login after pressing OK
-          },
+          { text: 'OK', onPress: () => navigation.navigate('Login') },
         ]);
       } catch (error) {
         console.log('Signup error:', error.message);
@@ -84,13 +76,11 @@ export default function ClinicLinkSignup() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Background and Logo */}
       <View style={styles.topContainer}>
         <Image source={require('../assets/background.png')} style={styles.backgroundImage} />
         <Image source={require('../assets/logo.jpg')} style={styles.logo} />
       </View>
 
-      {/* Signup Form */}
       <View style={styles.bottomContainer}>
         <Text style={styles.title}>Create new Account</Text>
         <Text style={styles.subtitle}>
@@ -100,7 +90,6 @@ export default function ClinicLinkSignup() {
           </Text>
         </Text>
 
-        {/* Name */}
         <Text style={styles.inputLabel}>NAME</Text>
         <TextInput
           style={styles.input}
@@ -110,7 +99,6 @@ export default function ClinicLinkSignup() {
         />
         {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
-        {/* Mobile */}
         <Text style={styles.inputLabel}>MOBILE</Text>
         <TextInput
           style={styles.input}
@@ -122,7 +110,6 @@ export default function ClinicLinkSignup() {
         />
         {errors.mobile && <Text style={styles.errorText}>{errors.mobile}</Text>}
 
-        {/* Email */}
         <Text style={styles.inputLabel}>EMAIL</Text>
         <TextInput
           style={styles.input}
@@ -134,7 +121,6 @@ export default function ClinicLinkSignup() {
         />
         {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-        {/* Password */}
         <Text style={styles.inputLabel}>PASSWORD</Text>
         <TextInput
           style={styles.input}
@@ -145,7 +131,6 @@ export default function ClinicLinkSignup() {
         />
         {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-        {/* Confirm Password */}
         <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
         <TextInput
           style={styles.input}
@@ -156,7 +141,6 @@ export default function ClinicLinkSignup() {
         />
         {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
 
-        {/* Date of Birth */}
         <Text style={styles.inputLabel}>DATE OF BIRTH</Text>
         <TextInput
           style={styles.input}
@@ -166,7 +150,6 @@ export default function ClinicLinkSignup() {
         />
         {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
 
-        {/* Sign Up Button */}
         <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
           <Text style={styles.signupButtonText}>Sign up</Text>
         </TouchableOpacity>
