@@ -1,6 +1,6 @@
-// ✅ HomeScreen.js with Stylish AI Chat Floating Button and Updated UI
+// ✅ HomeScreen.js with User Name, First-Time Tutorial, Appointment Count Badge, and Professional Icons
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,61 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Modal,
 } from 'react-native';
 import Swiper from 'react-native-swiper';
 import { Ionicons } from '@expo/vector-icons';
+import { auth, db } from '../config/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen({ navigation }) {
+  const [userName, setUserName] = useState('');
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [appointmentCount, setAppointmentCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const q = query(collection(db, 'users'), where('uid', '==', currentUser.uid));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const userData = snapshot.docs[0].data();
+          setUserName(userData.name);
+        }
+      }
+    };
+
+    const checkTutorialStatus = async () => {
+      const seen = await AsyncStorage.getItem('seenTutorial');
+      if (!seen) {
+        setShowTutorial(true);
+        await AsyncStorage.setItem('seenTutorial', 'true');
+      }
+    };
+
+    const fetchAppointments = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const q = query(collection(db, 'appointments'), where('userId', '==', currentUser.uid));
+      const snapshot = await getDocs(q);
+      const now = new Date();
+      const activeAppointments = snapshot.docs.filter(doc => {
+        const { date, time } = doc.data();
+        return new Date(`${date}T${time}`) > now;
+      });
+      setAppointmentCount(activeAppointments.length);
+    };
+
+    fetchUser();
+    checkTutorialStatus();
+    fetchAppointments();
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>        
           <Image source={require('../assets/logo.jpg')} style={styles.logo} />
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
@@ -25,13 +71,11 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Greeting */}
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcome}>Hi there 👋</Text>
+          <Text style={styles.welcome}>Hi {userName || 'there'} 👋</Text>
           <Text style={styles.subtitle}>Welcome to <Text style={{ fontWeight: 'bold' }}>ClinicLink</Text>, your health partner.</Text>
         </View>
 
-        {/* Image Slider */}
         <View style={styles.sliderContainer}>
           <Swiper autoplay height={200} dotColor="#ccc" activeDotColor="#007AFF">
             <Image source={require('../assets/doctor.jpg')} style={styles.sliderImage} />
@@ -40,24 +84,25 @@ export default function HomeScreen({ navigation }) {
           </Swiper>
         </View>
 
-        {/* Feature Cards */}
         <View style={styles.cardRow}>
-          <TouchableOpacity style={styles.card}>
-            <Image source={require('../assets/doctor.jpg')} style={styles.cardIcon} />
+          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ScheduledAppointments')}>
+            {appointmentCount > 0 && (
+              <View style={styles.badge}><Text style={styles.badgeText}>{appointmentCount}</Text></View>
+            )}
+            <Ionicons name="calendar-outline" size={32} color="#1E293B" style={styles.cardIcon} />
             <Text style={styles.cardTitle}>Appointments</Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Prescriptions')}>
-               <Image source={require('../assets/Profile.jpg')} style={styles.cardIcon} />
-               <Text style={styles.cardTitle}>Prescriptions</Text>
+            <Ionicons name="medkit-outline" size={32} color="#1E293B" style={styles.cardIcon} />
+            <Text style={styles.cardTitle}>Prescriptions</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Book Now Button */}
         <TouchableOpacity style={styles.bookButton} onPress={() => navigation.navigate('BookAppointment')}>
           <Text style={styles.bookText}>BOOK NOW</Text>
         </TouchableOpacity>
 
-        {/* Menu Buttons */}
         <View style={styles.buttonGroup}>
           <TouchableOpacity style={styles.menuButton}>
             <Text style={styles.menuText}>History</Text>
@@ -65,14 +110,44 @@ export default function HomeScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* Stylish Floating AI Chat Button */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => navigation.navigate('AIChat')}
-        >   
+      <TouchableOpacity style={styles.floatingButton} onPress={() => navigation.navigate('AIChat')}>
         <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
       </TouchableOpacity>
 
+      <Modal visible={showTutorial} transparent animationType="fade">
+        <View style={styles.tutorialWrapper}>
+          <Swiper
+            loop={false}
+            activeDotColor="#2563EB"
+            dotColor="#ccc"
+            showsButtons={true}
+            buttonWrapperStyle={styles.buttonWrapper}
+            nextButton={<Text style={styles.buttonText}>Next</Text>}
+            prevButton={<Text style={styles.buttonText}>Back</Text>}
+            onIndexChanged={(index) => {
+              if (index === 2) {
+                setTimeout(() => setShowTutorial(false), 1500);
+              }
+            }}
+          >
+            <View style={styles.tutorialPage}>
+              <Image source={require('../assets/doctor.jpg')} style={styles.tutorialImage} />
+              <Text style={styles.tutorialTitle}>Welcome to ClinicLink</Text>
+              <Text style={styles.tutorialDesc}>Manage doctor appointments and prescriptions effortlessly.</Text>
+            </View>
+            <View style={styles.tutorialPage}>
+              <Image source={require('../assets/logo.jpg')} style={styles.tutorialImage} />
+              <Text style={styles.tutorialTitle}>Easy Booking</Text>
+              <Text style={styles.tutorialDesc}>Schedule your appointment anytime between 9 AM - 5 PM, Mon to Fri.</Text>
+            </View>
+            <View style={styles.tutorialPage}>
+              <Image source={require('../assets/Profile.jpg')} style={styles.tutorialImage} />
+              <Text style={styles.tutorialTitle}>Smart Assistant</Text>
+              <Text style={styles.tutorialDesc}>Use the AI Chatbot to ask health-related queries 24/7.</Text>
+            </View>
+          </Swiper>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -137,21 +212,33 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     borderRadius: 15,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 3,
+    position: 'relative',
   },
   cardIcon: {
-    width: 40,
-    height: 40,
     marginBottom: 10,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1E293B',
+  },
+  badge: {
+    position: 'absolute',
+    top: 8,
+    right: 12,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   bookButton: {
     backgroundColor: '#2563EB',
@@ -159,11 +246,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     marginVertical: 15,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 5,
-    elevation: 4,
   },
   bookText: {
     color: '#fff',
@@ -179,7 +261,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 18,
     alignItems: 'center',
-    elevation: 2,
   },
   menuText: {
     color: '#1F2937',
@@ -196,10 +277,55 @@ const styles = StyleSheet.create({
     borderRadius: 32.5,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    elevation: 6,
+  },
+  tutorialWrapper: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tutorialPage: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginHorizontal: 20,
+    paddingVertical: 40,
+  },
+  tutorialImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 20,
+    borderRadius: 20,
+  },
+  tutorialTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  tutorialDesc: {
+    fontSize: 16,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  buttonWrapper: {
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    justifyContent: 'space-between',
+    paddingHorizontal: 30,
+  },
+  buttonText: {
+    color: '#2563EB',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

@@ -1,4 +1,4 @@
-// 📅 BookAppointmentScreen.js — Professional UI with Doctor Images
+// 🗕️ BookAppointmentScreen.js — Firestore with Conflict Check, Time & Day Restriction, User ID, and No Past Booking
 
 import React, { useState } from 'react';
 import {
@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { db, auth } from '../config/firebase';
+import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 
 const doctors = [
   { id: '1', name: 'Dr. Smith', specialty: 'Cardiologist' },
@@ -41,18 +43,82 @@ export default function BookAppointmentScreen({ navigation }) {
     if (selectedTime) setTime(selectedTime);
   };
 
-  const handleBooking = () => {
-    if (!selectedDoctor || !date || !time || !reason.trim()) {
+  const isTimeAvailable = async (doctorId, selectedDate, selectedTime) => {
+    const q = query(
+      collection(db, 'appointments'),
+      where('doctorId', '==', doctorId),
+      where('date', '==', selectedDate)
+    );
+    const querySnapshot = await getDocs(q);
+    const newTime = new Date(`${selectedDate}T${selectedTime}`);
+
+    for (const doc of querySnapshot.docs) {
+      const data = doc.data();
+      const existingTime = new Date(`${data.date}T${data.time}`);
+      const timeDiff = Math.abs(existingTime - newTime);
+      if (timeDiff < 45 * 60 * 1000) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleBooking = async () => {
+    const selectedDateStr = date.toISOString().split('T')[0];
+    const selectedTimeStr = time.toTimeString().split(' ')[0].slice(0, 5);
+    const appointmentDateTime = new Date(`${selectedDateStr}T${selectedTimeStr}`);
+
+    const now = new Date();
+    if (appointmentDateTime < now) {
+      Alert.alert('Invalid Time', 'You cannot book an appointment in the past.');
+      return;
+    }
+
+    const selectedHour = time.getHours();
+    if (selectedHour < 9 || selectedHour >= 17) {
+      Alert.alert('Invalid Time', 'Appointments can only be booked between 9:00 AM and 5:00 PM.');
+      return;
+    }
+
+    if (date.getDay() === 0 || date.getDay() === 6) {
+      Alert.alert('Invalid Day', 'Appointments can only be booked Monday to Friday.');
+      return;
+    }
+
+    if (!selectedDoctor || !reason.trim()) {
       Alert.alert('Missing Info', 'Please complete all fields.');
       return;
     }
-    Alert.alert('Success', `Appointment booked with ${selectedDoctor.name} on ${date.toDateString()} at ${time.toLocaleTimeString()}.`);
+
+    const available = await isTimeAvailable(selectedDoctor.id, selectedDateStr, selectedTimeStr);
+    if (!available) {
+      Alert.alert('Time Unavailable', 'Another appointment is already booked within 45 minutes.');
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      Alert.alert('Not Logged In', 'Please log in to book an appointment.');
+      return;
+    }
+
+    await addDoc(collection(db, 'appointments'), {
+      userId: currentUser.uid,
+      doctorId: selectedDoctor.id,
+      doctorName: selectedDoctor.name,
+      specialty: selectedDoctor.specialty,
+      date: selectedDateStr,
+      time: selectedTimeStr,
+      reason,
+      createdAt: new Date(),
+    });
+
+    Alert.alert('Success', 'Appointment booked successfully!');
     navigation.goBack();
   };
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={26} color="#fff" />
@@ -61,7 +127,6 @@ export default function BookAppointmentScreen({ navigation }) {
         <View style={{ width: 26 }} />
       </View>
 
-      {/* Doctor List */}
       <Text style={styles.sectionTitle}>Choose a Doctor</Text>
       <FlatList
         data={doctors}
@@ -87,7 +152,6 @@ export default function BookAppointmentScreen({ navigation }) {
         )}
       />
 
-      {/* Date Picker */}
       <Text style={styles.sectionTitle}>Select Date</Text>
       <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
         <Text>{date.toDateString()}</Text>
@@ -101,7 +165,6 @@ export default function BookAppointmentScreen({ navigation }) {
         />
       )}
 
-      {/* Time Picker */}
       <Text style={styles.sectionTitle}>Select Time</Text>
       <TouchableOpacity style={styles.input} onPress={() => setShowTimePicker(true)}>
         <Text>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
@@ -115,7 +178,6 @@ export default function BookAppointmentScreen({ navigation }) {
         />
       )}
 
-      {/* Reason Input */}
       <Text style={styles.sectionTitle}>Reason for Visit</Text>
       <TextInput
         style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
@@ -126,7 +188,6 @@ export default function BookAppointmentScreen({ navigation }) {
         onChangeText={setReason}
       />
 
-      {/* Book Now */}
       <TouchableOpacity style={styles.bookButton} onPress={handleBooking}>
         <Text style={styles.bookText}>Book Now</Text>
       </TouchableOpacity>

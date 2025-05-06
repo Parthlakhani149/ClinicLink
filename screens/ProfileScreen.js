@@ -1,4 +1,4 @@
-// ✅ Final ProfileScreen with Firebase, Edit, Logout, Back Icon and Professional UI
+// ✅ Final ProfileScreen with Firebase, Query by UID Field, Edit, Logout, and Professional UI
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -6,22 +6,25 @@ import {
   TextInput, ScrollView, Alert, ActivityIndicator
 } from 'react-native';
 import { auth, db } from '../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userDocId, setUserDocId] = useState(null);
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const docRef = doc(db, 'users', uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
+        const q = query(collection(db, 'users'), where('uid', '==', uid));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const userDoc = querySnapshot.docs[0];
+          setUserData(userDoc.data());
+          setUserDocId(userDoc.id);
         } else {
           Alert.alert('User not found');
         }
@@ -45,7 +48,8 @@ export default function ProfileScreen({ navigation }) {
 
   const handleSave = async () => {
     try {
-      await updateDoc(doc(db, 'users', uid), {
+      if (!userDocId) return;
+      await updateDoc(doc(db, 'users', userDocId), {
         name: userData.name,
         dob: userData.dob,
         mobile: userData.mobile,

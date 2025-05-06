@@ -9,6 +9,8 @@ import Profile from './screens/ProfileScreen';
 import PrescriptionsScreen from './screens/PrescriptionsScreen';
 import BookAppointmentScreen from './screens/BookAppointmentScreen';
 import AIChatScreen from './screens/AIChatScreen';
+import ScheduledAppointmentsScreen from './screens/ScheduledAppointmentsScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +27,7 @@ export default function App() {
           <Stack.Screen name="Prescriptions" component={PrescriptionsScreen} />
           <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
           <Stack.Screen name="AIChat" component={AIChatScreen} />
+          <Stack.Screen name="ScheduledAppointments" component={ScheduledAppointmentsScreen} />
 
         </Stack.Navigator>
       </NavigationContainer>
